@@ -7,3 +7,6 @@
 * Task 4 
 
 ## Testing Tools
+* Wireshark
+* Telnet
+* Netcat
