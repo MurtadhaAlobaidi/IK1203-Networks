@@ -1,5 +1,5 @@
 # IK1203 Networks and Communcation at KTH
-### Socket Programming Project
+### Socket Programming Project on JAVA
 ### The Project about implementing networking applications – programs that communicate over the network.
 * Task 1 
 * Task 2
