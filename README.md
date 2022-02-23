@@ -1,1 +1,1 @@
-# IK1203 Nätverk och kommunikation kth
+# IK1203 Networks and Communcation at KTH
