@@ -1,15 +1,10 @@
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
-import java.nio.charset.StandardCharsets;
+import java.net.*;
+
 import tcpclient.TCPClient;
 
-public class HTTPAsk {
+import java.io.*;
 
+public class HTTPAsk {
 	private static int BUFFERSIZE = 1024;
 
 	static boolean shutdown = false;
@@ -27,70 +22,69 @@ public class HTTPAsk {
 		byte[] fromClientBuffer = new byte[BUFFERSIZE];
 
 		ServerSocket welcomeSocket = new ServerSocket(8888);
-		System.out.println("Connected to server" + welcomeSocket);
+		System.out.println("Connected to HTTP Server" + welcomeSocket);
 
 		while (true) {
 
 			Socket HTTPSocket = welcomeSocket.accept();
+			try {
+				InputStream inFromClient = HTTPSocket.getInputStream();
 
-			InputStream inFromClient = HTTPSocket.getInputStream();
+				OutputStream outToClient = HTTPSocket.getOutputStream();
 
-			OutputStream outToClient = HTTPSocket.getOutputStream();
-			String e1 = "HTTP /1.1 200 OK\r\n\r\n";
-			HTTPSocket.getOutputStream().write(e1.getBytes("UTF-8"));
+				System.out.println("Conected");
 
-			ByteArrayOutputStream fromServer = new ByteArrayOutputStream();
+				String decodes = " ";
 
-			System.out.println("Conected");
+				int counter = inFromClient.read(fromClientBuffer);
 
-			String decodes = " ";
+				while (counter != -1) {
+					decodes = new String(fromClientBuffer, 0, counter);
 
-			int counter = inFromClient.read(fromClientBuffer);
+					String[] splitString = decodes.split("[?&= ]", 10);
 
-			while (counter != -1) {
-				decodes = new String(fromClientBuffer, 0, counter);
+					if (splitString[0].equals("GET") && splitString[1].equals("/ask") && decodes.contains("HTTP/1.1")) {
+						status = ("HTTP/1.1 200 OK \r\n\r\n");
+						for (int i = 0; i < splitString.length; i++) {
+							if (splitString[i].equals("hostname")) {
+								hostname = splitString[i + 1];
+							} else if (splitString[i].equals("port")) {
+								port = Integer.parseInt(splitString[i + 1]);
+							} else if (splitString[i].equals("string")) {
+								stringClient = splitString[i + 1];
+							}
+						}
+						outToClient.write(status.getBytes("UTF-8"));
+					} else {
+						status = ("HTTP/1.1 400 Bad Request \r\n");
+					}
 
-				String[] splitString = decodes.split("[?&= ]", 10);
+					break;
 
-				if (splitString[0].equals("GET") && splitString[1].equals("/ask")
-						&& decodes.contains("HTTP/1.1")) {
-					status = ("HTTP/1.1 200 OK \r\n\r\n");
-					for (int i = 0; i < splitString.length; i++) {
-						if (splitString[i].equals("hostname"))
-							hostname = splitString[i + 1];
-						else if (splitString[i].equals("port"))
-							port = Integer.parseInt(splitString[i + 1]);
-						else if (splitString[i].equals("string"))
-							stringClient = splitString[i + 1];
+				}
+
+				if (!(status.contains("HTTP/1.1 400 Bad Request"))) {
+
+					try {
+						byte[] toServerByte = stringClient.getBytes("UTF-8");
+
+						TCPClient tcpClient = new TCPClient(shutdown, timeout, limit);
+						byte[] result = tcpClient.askServer(hostname, port, toServerByte);
+						HTTPSocket.getOutputStream().write(result);
+
+					} catch (IOException e) {
+						status = ("HTTP/1.1 404 Not Found \r\n");
+						HTTPSocket.getOutputStream().write(status.getBytes("UTF-8"));
 					}
 				} else {
-					status = ("HTTP/1.1 400 Bad Request \r\n");
-				}
-
-				if (decodes.contains("\n"))
-					break;
-				counter = inFromClient.read(fromClientBuffer);
-			}
-
-			if (!(status.contains("HTTP/1.1 400 Bad Request"))) {
-
-				try {
-					byte[] toServerByte = stringClient.getBytes("UTF-8");
-
-					TCPClient tcpClient = new TCPClient(shutdown, timeout, limit);
-					byte[] result = tcpClient.askServer(hostname, port, toServerByte);
-					HTTPSocket.getOutputStream().write(result);
-
-				} catch (IOException e) {
-					status = ("HTTP/1.1 404 Not Found \r\n");
 					HTTPSocket.getOutputStream().write(status.getBytes("UTF-8"));
 				}
-			} else {
-				HTTPSocket.getOutputStream().write(status.getBytes("UTF-8"));
+
+				HTTPSocket.close();
+
+			} catch (IOException ex) {
+				System.out.println("ERROR");
 			}
-
-			HTTPSocket.close();
-
 		}
 
 	}
